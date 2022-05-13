@@ -947,16 +947,22 @@ class PrettierPrint
   # remaining space of the current line. You can force it to break the
   # surrounding group instead if you always want the newline with the +force+
   # argument.
+  #
+  # There are a few circumstances where you'll want to force the newline into
+  # the output but no insert a break parent (because you don't want to
+  # necessarily force the groups to break unless they need to). In this case you
+  # can pass `force: :skip_break_parent` to this method and it will not insert
+  # a break parent.`
   def breakable(
     separator = " ",
     width = separator.length,
     indent: true,
     force: false
   )
-    doc = Breakable.new(separator, width, indent: indent, force: force)
+    doc = Breakable.new(separator, width, indent: indent, force: !!force)
 
     target << doc
-    break_parent if force
+    break_parent if force == true
 
     doc
   end
