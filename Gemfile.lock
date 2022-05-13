@@ -1,0 +1,23 @@
+PATH
+  remote: .
+  specs:
+    prettier_print (0.1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    power_assert (2.0.1)
+    rake (13.0.6)
+    test-unit (3.5.3)
+      power_assert
+
+PLATFORMS
+  x86_64-darwin-21
+
+DEPENDENCIES
+  prettier_print!
+  rake
+  test-unit
+
+BUNDLED WITH
+   2.3.6

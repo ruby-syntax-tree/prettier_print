@@ -1,0 +1,43 @@
+name: Main
+on:
+- push
+- pull_request_target
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+        - '2.7'
+        - '3.0'
+        - '3.1'
+        - head
+    name: CI
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    steps:
+    - uses: actions/checkout@master
+    - uses: ruby/setup-ruby@v1
+      with:
+        bundler-cache: true
+        ruby-version: ${{ matrix.ruby }}
+    - name: Test
+      run: bundle exec rake test
+
+  automerge:
+    name: AutoMerge
+    needs:
+    - ci
+    - check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
+    steps:
+    - uses: actions/github-script@v3
+      with:
+        script: |
+          github.pulls.merge({
+            owner: context.payload.repository.owner.login,
+            repo: context.payload.repository.name,
+            pull_number: context.payload.pull_request.number
+          })
