@@ -614,7 +614,7 @@ class PrettierPrint
   # treated as just an invocation of +text+.
   #
   def self.singleline_format(
-    output = "".dup,
+    output = +"",
     _maxwidth = nil,
     _newline = nil,
     _genspace = nil
@@ -886,6 +886,60 @@ class PrettierPrint
   # specify this when +separator+ is a multibyte character, for example.
   def fill_breakable(separator = " ", width = separator.length)
     group { breakable(separator, width) }
+  end
+
+  # This method calculates the position of the text relative to the current
+  # indentation level when the doc has been printed. It's useful for
+  # determining how to align text to doc nodes that are already built into the
+  # tree.
+  def last_position(node)
+    queue = [node]
+    width = 0
+
+    until queue.empty?
+      doc = queue.shift
+
+      case doc
+      when Text
+        width += doc.width
+      when Indent, Align, Group
+        queue = doc.contents + queue
+      when IfBreak
+        queue = doc.break_contents + queue
+      when Breakable
+        width = 0
+      end
+    end
+
+    width
+  end
+
+  # This method will remove any breakables from the list of contents so that
+  # no newlines are present in the output. If a newline is being forced into
+  # the output, the replace value will be used.
+  def remove_breaks(node, replace = "; ")
+    marker = Object.new
+    stack = [node]
+
+    while stack.any?
+      doc = stack.pop
+
+      if doc == marker
+        stack.pop
+        next
+      end
+
+      stack += [doc, marker]
+
+      case doc
+      when Align, Indent, Group
+        doc.contents.map! { |child| remove_breaks_with(child, replace) }
+        stack += doc.contents.reverse
+      when IfBreak
+        doc.flat_contents.map! { |child| remove_breaks_with(child, replace) }
+        stack += doc.flat_contents.reverse
+      end
+    end
   end
 
   # Adds a separated list.
@@ -1203,5 +1257,18 @@ class PrettierPrint
   def reset
     @groups = [Group.new(0)]
     @target = @groups.last.contents
+  end
+
+  def remove_breaks_with(doc, replace)
+    case doc
+    when Breakable
+      text = Text.new
+      text.add(object: doc.force? ? replace : doc.separator, width: doc.width)
+      text
+    when IfBreak
+      Align.new(indent: 0, contents: doc.flat_contents)
+    else
+      doc
+    end
   end
 end
