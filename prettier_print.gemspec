@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.authors = ["Kevin Newton"]
   spec.email = ["kddnewton@gmail.com"]
 
-  spec.summary = "A pretty-printing algorithm"
+  spec.summary = "A drop-in replacement for the prettyprint gem with more functionality."
   spec.homepage = "https://github.com/ruby-syntax-tree/prettier_print"
   spec.license = "MIT"
   spec.metadata = { "rubygems_mfa_required" => "true" }
