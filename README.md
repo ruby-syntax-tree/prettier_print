@@ -20,7 +20,7 @@ Or install it yourself as:
 
 ## Usage
 
-To use `PrettierPrint`, you're going to construct a tree that encodes information about how to best print your data, then give the tree a width to print within. The tree will various nodes like `Text` (which wraps actual content to be printed), `Breakable` (a place where a line break could be inserted), `Group` (a set of nodes where if they don't fit on one line they should convert all `Breakable` nodes to line breaks), and others.
+To use `PrettierPrint`, you're going to construct a tree that encodes information about how to best print your data, then give the tree a maximum width within which to print. The tree will contain various nodes like `Text` (which wraps actual content to be printed), `Breakable` (a place where a line break could be inserted), `Group` (a set of nodes that the printer should attempt to print on one line), and others.
 
 ### Building the printer
 
@@ -32,8 +32,8 @@ q = PrettierPrint.new(+"", 80, "\n") { |n| " " * n }
 
 By convention, the `PrettierPrint` object is called `q`. The arguments are detailed below.
 
-* This first argument (and the only required argument) is the output object. It can be anything that responds to `<<`, provided that method accepts strings. It's also common to use `[]`.
-* The optional second argument is the print width. This defaults to 80. For more information about this see the section below on [print width](#print-width).
+* This first argument (and the only required argument) is the output object. It can be anything that responds to `<<`, provided that method accepts strings. Usually this is an unfrozen empty string (`+""`). It's also common to see an empty array (`[]`).
+* The optional second argument is the print width. This defaults to `80`. For more information about this see the section below on [print width](#print-width).
 * The optional third argument is the newline to use. This defaults to `"\n"`. In some special circumstances, you might want something else like `"\r\n"` or any other newline marker.
 * The final optional argument is the block that specifies how to build spaces. It receives a single argument which is the number of spaces to generate. This defaults to printing the specified number of space characters. You would modify this only in special circumstances.
 
@@ -47,11 +47,11 @@ if some_very_long_condition.some_very_long_method_name(some_very_long_argument)
 end
 ```
 
-In this case you wouldn't want your print width to be set much more than 80, since it would attempt to print this all on one line, which is much less readable.
+In this case you wouldn't want your print width to be set much more than `80`, since it would attempt to print this all on one line, which is much less readable.
 
 ### Building the tree
 
-Now that you have a printer created, you can start to build out the tree. Each of the nodes of the tree is a small object that you can inspect manually. They each have convenience methods on the print object that should be used to create them. We'll start by talking about the most foundational nodes, then move on to the less commonly-used ones.
+Now that you have a printer created, you can start to build out the tree. Each of the nodes of the tree is a small object that you can inspect manually. They each have convenience methods on the printer object that should be used to create them. We'll start by talking about the most foundational nodes, then move on to the less commonly-used ones.
 
 #### `Text`
 
@@ -99,7 +99,7 @@ There are some times when you want to force a newline into the output and not ch
 q.breakable(force: true)
 ```
 
-There are a few circumstances where you'll want to force the newline into the output but no insert a break parent (because you don't want to necessarily force the groups to break unless they need to). In this case you can pass `force: :skip_break_parent` to this `breakable` and it will not insert a break parent.
+There are a few circumstances where you'll want to force the newline into the output but not insert a break parent (because you don't want to necessarily force the groups to break unless they need to). In this case you can pass `force: :skip_break_parent` to breakable and it will not insert a break parent.
 
 ```ruby
 q.breakable(force: :skip_break_parent)
@@ -107,7 +107,7 @@ q.breakable(force: :skip_break_parent)
 
 ### `Group`
 
-This node marks a group of items which the printer should try to fit on one line. This is the basic command to tell the printer when to break. Groups are usually nested, and the printer will try to fit everything on one line, but if it doesn't fit it will break the outermost group first and try again. It will continue breaking groups until everything fits (or there are no more groups to break).
+This node marks a group of items which the printer should try to fit on one line. Groups are usually nested, and the printer will try to fit everything on one line, but if it doesn't fit it will break the outermost group first and try again. It will continue breaking groups until everything fits (or there are no more groups to break).
 
 Breaks are propagated to all parent groups, so if a deeply nested expression has a forced break, everything will break. This only matters for forced breaks, i.e. newlines that are printed no matter what and can be statically analyzed.
 
@@ -411,14 +411,12 @@ Let's say you wanted to print out a file system like the `tree` command. You wou
 ```ruby
 def print_directory(q, entries)
   grouped = entries.group_by { _1.include?("/") ? _1[0..._1.index("/")] : "." }
-  return if grouped.empty?
 
-  q.seplist(grouped["."], -> { q.breakable(force: true) }) do |entry|
+  q.seplist(grouped["."], -> { q.breakable }) do |entry|
     if grouped.key?(entry)
       q.text(entry)
-
       q.indent do
-        q.breakable(force: true)
+        q.breakable
         print_directory(q, grouped[entry].map! { _1[(entry.length + 1)..] })
       end
     else
