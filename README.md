@@ -137,11 +137,7 @@ This node increases the indentation by a fixed number of spaces or a string. It 
 q.nest(2) {}
 ```
 
-It accepts a block that specifies the contents of the alignment node. The value that you're indenting by can be positive or negative. It can also be a string, in which case that value will be used at the beginning of each line, as in:
-
-```ruby
-q.nest("-->") {}
-```
+It accepts a block that specifies the contents of the alignment node. The value that you're indenting by can be positive or negative.
 
 #### `BreakParent`
 
