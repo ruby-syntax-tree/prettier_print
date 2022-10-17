@@ -120,6 +120,13 @@ class PrettierPrint
     end
   end
 
+  # Below here are the most common combination of options that are created when
+  # creating new breakables. They are here to cut down on some allocations.
+  BREAKABLE_SPACE = Breakable.new(" ", 1, indent: true, force: false)
+  BREAKABLE_EMPTY = Breakable.new("", 0, indent: true, force: false)
+  BREAKABLE_FORCE = Breakable.new(" ", 1, indent: true, force: true)
+  BREAKABLE_RETURN = Breakable.new(" ", 1, indent: false, force: true)
+
   # A node in the print tree that forces the surrounding group to print out in
   # the "break" mode as opposed to the "flat" mode. Useful for when you need to
   # force a newline into a group.
@@ -128,6 +135,10 @@ class PrettierPrint
       q.text("break-parent")
     end
   end
+
+  # Since there's really no difference in these instances, just using the same
+  # one saves on some allocations.
+  BREAK_PARENT = BreakParent.new
 
   # A node in the print tree that represents a group of items which the printer
   # should try to fit onto one line. This is the basic command to tell the
@@ -254,19 +265,23 @@ class PrettierPrint
     end
   end
 
+  # Since all of the instances here are the same, we can reuse the same one to
+  # cut down on allocations.
+  TRIM = Trim.new
+
   # When building up the contents in the output buffer, it's convenient to be
   # able to trim trailing whitespace before newlines. If the output object is a
   # string or array or strings, then we can do this with some gsub calls. If
   # not, then this effectively just wraps the output object and forwards on
   # calls to <<.
   module Buffer
-    # This is the default output buffer that provides a base implementation of
-    # trim! that does nothing. It's effectively a wrapper around whatever output
-    # object was given to the format command.
-    class DefaultBuffer
+    # This is an output buffer that wraps a string output object. It provides a
+    # trim! method that trims off trailing whitespace from the string using
+    # gsub!.
+    class StringBuffer
       attr_reader :output
 
-      def initialize(output = [])
+      def initialize(output = "".dup)
         @output = output
       end
 
@@ -275,21 +290,8 @@ class PrettierPrint
       end
 
       def trim!
-        0
-      end
-    end
-
-    # This is an output buffer that wraps a string output object. It provides a
-    # trim! method that trims off trailing whitespace from the string using
-    # gsub!.
-    class StringBuffer < DefaultBuffer
-      def initialize(output = "".dup)
-        super(output)
-      end
-
-      def trim!
         length = output.length
-        output.gsub!(/[\t ]*\z/, "")
+        output.rstrip!
         length - output.length
       end
     end
@@ -298,9 +300,15 @@ class PrettierPrint
     # trim! method that trims off trailing whitespace from the last element in
     # the array if it's an unfrozen string using the same method as the
     # StringBuffer.
-    class ArrayBuffer < DefaultBuffer
+    class ArrayBuffer
+      attr_reader :output
+
       def initialize(output = [])
-        super(output)
+        @output = output
+      end
+
+      def <<(object)
+        @output << object
       end
 
       def trim!
@@ -315,7 +323,7 @@ class PrettierPrint
 
         if output.any? && output.last.is_a?(String) && !output.last.frozen?
           length = output.last.length
-          output.last.gsub!(/[\t ]*\z/, "")
+          output.last.rstrip!
           trimmed += length - output.last.length
         end
 
@@ -326,14 +334,7 @@ class PrettierPrint
     # This is a switch for building the correct output buffer wrapper class for
     # the given output object.
     def self.for(output)
-      case output
-      when String
-        StringBuffer.new(output)
-      when Array
-        ArrayBuffer.new(output)
-      else
-        DefaultBuffer.new(output)
-      end
+      output.is_a?(String) ? StringBuffer.new(output) : ArrayBuffer.new(output)
     end
   end
 
@@ -479,88 +480,6 @@ class PrettierPrint
     # +width+ argument is here for compatibility. It is a noop argument.
     def text(object = "", _width = nil)
       target << object
-    end
-  end
-
-  # This object represents the current level of indentation within the printer.
-  # It has the ability to generate new levels of indentation through the #align
-  # and #indent methods.
-  class IndentLevel
-    IndentPart = Object.new
-    DedentPart = Object.new
-
-    StringAlignPart = Struct.new(:n)
-    NumberAlignPart = Struct.new(:n)
-
-    attr_reader :genspace, :value, :length, :queue, :root
-
-    def initialize(
-      genspace:,
-      value: genspace.call(0),
-      length: 0,
-      queue: [],
-      root: nil
-    )
-      @genspace = genspace
-      @value = value
-      @length = length
-      @queue = queue
-      @root = root
-    end
-
-    # This can accept a whole lot of different kinds of objects, due to the
-    # nature of the flexibility of the Align node.
-    def align(n)
-      case n
-      when NilClass
-        self
-      when String
-        indent(StringAlignPart.new(n))
-      else
-        indent(n < 0 ? DedentPart : NumberAlignPart.new(n))
-      end
-    end
-
-    def indent(part = IndentPart)
-      next_value = genspace.call(0)
-      next_length = 0
-      next_queue = (part == DedentPart ? queue[0...-1] : [*queue, part])
-
-      last_spaces = 0
-
-      add_spaces = ->(count) do
-        next_value << genspace.call(count)
-        next_length += count
-      end
-
-      flush_spaces = -> do
-        add_spaces[last_spaces] if last_spaces > 0
-        last_spaces = 0
-      end
-
-      next_queue.each do |next_part|
-        case next_part
-        when IndentPart
-          flush_spaces.call
-          add_spaces.call(2)
-        when StringAlignPart
-          flush_spaces.call
-          next_value += next_part.n
-          next_length += next_part.n.length
-        when NumberAlignPart
-          last_spaces += next_part.n
-        end
-      end
-
-      flush_spaces.call
-
-      IndentLevel.new(
-        genspace: genspace,
-        value: next_value,
-        length: next_length,
-        queue: next_queue,
-        root: root
-      )
     end
   end
 
@@ -734,7 +653,7 @@ class PrettierPrint
 
     # This is our command stack. A command consists of a triplet of an
     # indentation level, the mode (break or flat), and a doc node.
-    commands = [[IndentLevel.new(genspace: genspace), MODE_BREAK, doc]]
+    commands = [[0, MODE_BREAK, doc]]
 
     # This is a small optimization boolean. It keeps track of whether or not
     # when we hit a group node we should check if it fits on the same line.
@@ -750,49 +669,35 @@ class PrettierPrint
     # priority set on the line suffix and the index it was in the original
     # array.
     line_suffix_sort = ->(line_suffix) do
-      [-line_suffix.last, -line_suffixes.index(line_suffix)]
+      [-line_suffix.last.priority, -line_suffixes.index(line_suffix)]
     end
 
     # This is a linear stack instead of a mutually recursive call defined on
     # the individual doc nodes for efficiency.
     while (indent, mode, doc = commands.pop)
       case doc
-      when Text
-        doc.objects.each { |object| buffer << object }
-        position += doc.width
-      when Array
-        doc.reverse_each { |part| commands << [indent, mode, part] }
-      when Indent
-        commands << [indent.indent, mode, doc.contents]
-      when Align
-        commands << [indent.align(doc.indent), mode, doc.contents]
-      when Trim
-        position -= buffer.trim!
+      when String
+        buffer << doc
+        position += doc.length
       when Group
         if mode == MODE_FLAT && !should_remeasure
-          commands << [
-            indent,
-            doc.break? ? MODE_BREAK : MODE_FLAT,
-            doc.contents
-          ]
+          next_mode = doc.break? ? MODE_BREAK : MODE_FLAT
+          commands += doc.contents.reverse.map { |part| [indent, next_mode, part] }
         else
           should_remeasure = false
-          next_cmd = [indent, MODE_FLAT, doc.contents]
-          commands << if !doc.break? &&
-               fits?(next_cmd, commands, maxwidth - position)
-            next_cmd
+
+          if doc.break?
+            commands += doc.contents.reverse.map { |part| [indent, MODE_BREAK, part] }
           else
-            [indent, MODE_BREAK, doc.contents]
+            next_commands = doc.contents.reverse.map { |part| [indent, MODE_FLAT, part] }
+
+            if fits?(next_commands, commands, maxwidth - position)
+              commands += next_commands
+            else
+              commands += next_commands.map { |command| command[1] = MODE_BREAK; command }
+            end
           end
         end
-      when IfBreak
-        if mode == MODE_BREAK && doc.break_contents.any?
-          commands << [indent, mode, doc.break_contents]
-        elsif mode == MODE_FLAT && doc.flat_contents.any?
-          commands << [indent, mode, doc.flat_contents]
-        end
-      when LineSuffix
-        line_suffixes << [indent, mode, doc.contents, doc.priority]
       when Breakable
         if mode == MODE_FLAT
           if doc.force?
@@ -813,28 +718,45 @@ class PrettierPrint
         # to flush them now, as we are about to add a newline.
         if line_suffixes.any?
           commands << [indent, mode, doc]
-          commands += line_suffixes.sort_by(&line_suffix_sort)
-          line_suffixes = []
+
+          line_suffixes.sort_by(&line_suffix_sort).each do |(indent, mode, doc)|
+            commands += doc.contents.reverse.map { |part| [indent, mode, part] }
+          end
+
+          line_suffixes.clear
           next
         end
 
         if !doc.indent?
           buffer << newline
-
-          if indent.root
-            buffer << indent.root.value
-            position = indent.root.length
-          else
-            position = 0
-          end
+          position = 0
         else
           position -= buffer.trim!
           buffer << newline
-          buffer << indent.value
-          position = indent.length
+          buffer << genspace.call(indent)
+          position = indent
         end
+      when Indent
+        next_indent = indent + 2
+        commands += doc.contents.reverse.map { |part| [next_indent, mode, part] }
+      when Align
+        next_indent = indent + doc.indent
+        commands += doc.contents.reverse.map { |part| [next_indent, mode, part] }
+      when Trim
+        position -= buffer.trim!
+      when IfBreak
+        if mode == MODE_BREAK && doc.break_contents.any?
+          commands += doc.break_contents.reverse.map { |part| [indent, mode, part] }
+        elsif mode == MODE_FLAT && doc.flat_contents.any?
+          commands += doc.flat_contents.reverse.map { |part| [indent, mode, part] }
+        end
+      when LineSuffix
+        line_suffixes << [indent, mode, doc]
       when BreakParent
         # do nothing
+      when Text
+        doc.objects.each { |object| buffer << object }
+        position += doc.width
       else
         # Special case where the user has defined some way to get an extra doc
         # node that we don't explicitly support into the list. In this case
@@ -861,13 +783,41 @@ class PrettierPrint
   # Helper node builders
   # ----------------------------------------------------------------------------
 
+  # The vast majority of breakable calls you receive while formatting are a
+  # space in flat mode and a newline in break mode. Since this is so common,
+  # we have a method here to skip past unnecessary calculation.
+  def breakable_space
+    target << BREAKABLE_SPACE
+  end
+
+  # Another very common breakable call you receive while formatting is an
+  # empty string in flat mode and a newline in break mode. Similar to
+  # breakable_space, this is here for avoid unnecessary calculation.
+  def breakable_empty
+    target << BREAKABLE_EMPTY
+  end
+
+  # The final of the very common breakable calls you receive while formatting
+  # is the normal breakable space but with the addition of the break_parent.
+  def breakable_force
+    target << BREAKABLE_FORCE
+    break_parent
+  end
+
+  # This is the same shortcut as breakable_force, except that it doesn't indent
+  # the next line. This is necessary if you're trying to preserve some custom
+  # formatting like a multi-line string.
+  def breakable_return
+    target << BREAKABLE_RETURN
+  end
+
   # A convenience method which is same as follows:
   #
   #   text(",")
   #   breakable
   def comma_breakable
     text(",")
-    breakable
+    breakable_space
   end
 
   # This is similar to #breakable except the decision to break or not is
@@ -896,18 +846,18 @@ class PrettierPrint
     queue = [node]
     width = 0
 
-    until queue.empty?
-      doc = queue.shift
-
+    while (doc = queue.shift)
       case doc
-      when Text
-        width += doc.width
-      when Indent, Align, Group
+      when String
+        width += doc.length
+      when Group, Indent, Align
         queue = doc.contents + queue
-      when IfBreak
-        queue = doc.break_contents + queue
       when Breakable
         width = 0
+      when IfBreak
+        queue = doc.break_contents + queue
+      when Text
+        width += doc.width
       end
     end
 
@@ -918,26 +868,16 @@ class PrettierPrint
   # no newlines are present in the output. If a newline is being forced into
   # the output, the replace value will be used.
   def remove_breaks(node, replace = "; ")
-    marker = Object.new
-    stack = [node]
+    queue = [node]
 
-    while stack.any?
-      doc = stack.pop
-
-      if doc == marker
-        stack.pop
-        next
-      end
-
-      stack += [doc, marker]
-
+    while (doc = queue.shift)
       case doc
       when Align, Indent, Group
         doc.contents.map! { |child| remove_breaks_with(child, replace) }
-        stack += doc.contents.reverse
+        queue += doc.contents
       when IfBreak
         doc.flat_contents.map! { |child| remove_breaks_with(child, replace) }
-        stack += doc.flat_contents.reverse
+        queue += doc.flat_contents
       end
     end
   end
@@ -967,13 +907,14 @@ class PrettierPrint
   #   q.comma_breakable
   #   xxx 3
   def seplist(list, sep=nil, iter_method=:each) # :yield: element
-    sep ||= lambda { comma_breakable }
     first = true
     list.__send__(iter_method) {|*v|
       if first
         first = false
-      else
+      elsif sep
         sep.call
+      else
+        comma_breakable
       end
       RUBY_VERSION >= "3.0" ? yield(*v, **{}) : yield(*v)
     }
@@ -1013,26 +954,20 @@ class PrettierPrint
     indent: true,
     force: false
   )
-    doc = Breakable.new(separator, width, indent: indent, force: !!force)
-
-    target << doc
+    target << Breakable.new(separator, width, indent: indent, force: !!force)
     break_parent if force == true
-
-    doc
   end
 
   # This inserts a BreakParent node into the print tree which forces the
   # surrounding and all parent group nodes to break.
   def break_parent
-    doc = BreakParent.new
+    doc = BREAK_PARENT
     target << doc
 
     groups.reverse_each do |group|
       break if group.break?
       group.break
     end
-
-    doc
   end
 
   # This inserts a Trim node into the print tree which, when printed, will clear
@@ -1040,10 +975,7 @@ class PrettierPrint
   # case where you need to delete printed indentation and force the next node
   # to start at the beginning of the line.
   def trim
-    doc = Trim.new
-    target << doc
-
-    doc
+    target << TRIM
   end
 
   # ----------------------------------------------------------------------------
@@ -1089,15 +1021,36 @@ class PrettierPrint
   # A small DSL-like object used for specifying the alternative contents to be
   # printed if the surrounding group doesn't break for an IfBreak node.
   class IfBreakBuilder
-    attr_reader :builder, :if_break
+    attr_reader :q, :flat_contents
 
-    def initialize(builder, if_break)
-      @builder = builder
-      @if_break = if_break
+    def initialize(q, flat_contents)
+      @q = q
+      @flat_contents = flat_contents
     end
 
-    def if_flat(&block)
-      builder.with_target(if_break.flat_contents, &block)
+    def if_flat
+      q.with_target(flat_contents) { yield }
+    end
+  end
+
+  # When we already know that groups are broken, we don't actually need to track
+  # the flat versions of the contents. So this builder version is effectively a
+  # no-op, but we need it to maintain the same API. The only thing this can
+  # impact is that if there's a forced break in the flat contents, then we need
+  # to propagate that break up the whole tree.
+  class IfFlatIgnore
+    attr_reader :q
+
+    def initialize(q)
+      @q = q
+    end
+
+    def if_flat
+      contents = []
+      group = Group.new(0, contents: contents)
+
+      q.with_target(contents) { yield }
+      q.break_parent if group.break?
     end
   end
 
@@ -1111,31 +1064,50 @@ class PrettierPrint
   # In the example above, if the surrounding group is broken it will print 'do'
   # and if it is not it will print '{'.
   def if_break
-    doc = IfBreak.new
+    break_contents = []
+    flat_contents = []
+
+    doc = IfBreak.new(break_contents: break_contents, flat_contents: flat_contents)
     target << doc
 
-    with_target(doc.break_contents) { yield }
-    IfBreakBuilder.new(self, doc)
+    with_target(break_contents) { yield }
+
+    if groups.last.break?
+      IfFlatIgnore.new(self)
+    else
+      IfBreakBuilder.new(self, flat_contents)
+    end
   end
 
   # This is similar to if_break in that it also inserts an IfBreak node into the
   # print tree, however it's starting from the flat contents, and cannot be used
   # to build the break contents.
   def if_flat
-    doc = IfBreak.new
-    target << doc
+    if groups.last.break?
+      contents = []
+      group = Group.new(0, contents: contents)
 
-    with_target(doc.flat_contents) { yield }
+      with_target(contents) { yield }
+      break_parent if group.break?
+    else
+      flat_contents = []
+      doc = IfBreak.new(break_contents: [], flat_contents: flat_contents)
+      target << doc
+
+      with_target(flat_contents) { yield }
+      doc
+    end
   end
 
   # Very similar to the #nest method, this indents the nested content by one
   # level by inserting an Indent node into the print tree. The contents of the
   # node are determined by the block.
   def indent
-    doc = Indent.new
+    contents = []
+    doc = Indent.new(contents: contents)
     target << doc
 
-    with_target(doc.contents) { yield }
+    with_target(contents) { yield }
     doc
   end
 
@@ -1152,10 +1124,11 @@ class PrettierPrint
   # Increases left margin after newline with +indent+ for line breaks added in
   # the block.
   def nest(indent)
-    doc = Align.new(indent: indent)
+    contents = []
+    doc = Align.new(indent: indent, contents: contents)
     target << doc
 
-    with_target(doc.contents) { yield }
+    with_target(contents) { yield }
     doc
   end
 
@@ -1192,7 +1165,7 @@ class PrettierPrint
   # fit onto the remaining space on the current line. If we finish printing
   # all of the commands or if we hit a newline, then we return true. Otherwise
   # if we continue printing past the remaining space, we return false.
-  def fits?(next_command, rest_commands, remaining)
+  def fits?(next_commands, rest_commands, remaining)
     # This is the index in the remaining commands that we've handled so far.
     # We reverse through the commands and add them to the stack if we've run
     # out of nodes to handle.
@@ -1200,7 +1173,7 @@ class PrettierPrint
 
     # This is our stack of commands, very similar to the commands list in the
     # print method.
-    commands = [next_command]
+    commands = [*next_commands]
 
     # This is our output buffer, really only necessary to keep track of
     # because we could encounter a Trim doc node that would actually add
@@ -1219,25 +1192,12 @@ class PrettierPrint
       indent, mode, doc = commands.pop
 
       case doc
-      when Text
-        doc.objects.each { |object| fit_buffer << object }
-        remaining -= doc.width
-      when Array
-        doc.reverse_each { |part| commands << [indent, mode, part] }
-      when Indent
-        commands << [indent.indent, mode, doc.contents]
-      when Align
-        commands << [indent.align(doc.indent), mode, doc.contents]
-      when Trim
-        remaining += fit_buffer.trim!
+      when String
+        fit_buffer << doc
+        remaining -= doc.length
       when Group
-        commands << [indent, doc.break? ? MODE_BREAK : mode, doc.contents]
-      when IfBreak
-        if mode == MODE_BREAK && doc.break_contents.any?
-          commands << [indent, mode, doc.break_contents]
-        elsif mode == MODE_FLAT && doc.flat_contents.any?
-          commands << [indent, mode, doc.flat_contents]
-        end
+        next_mode = doc.break? ? MODE_BREAK : mode
+        commands += doc.contents.reverse.map { |part| [indent, next_mode, part] }
       when Breakable
         if mode == MODE_FLAT && !doc.force?
           fit_buffer << doc.separator
@@ -1246,6 +1206,23 @@ class PrettierPrint
         end
 
         return true
+      when Indent
+        next_indent = indent + 2
+        commands += doc.contents.reverse.map { |part| [next_indent, mode, part] }
+      when Align
+        next_indent = indent + doc.indent
+        commands += doc.contents.reverse.map { |part| [next_indent, mode, part] }
+      when Trim
+        remaining += fit_buffer.trim!
+      when IfBreak
+        if mode == MODE_BREAK && doc.break_contents.any?
+          commands += doc.break_contents.reverse.map { |part| [indent, mode, part] }
+        elsif mode == MODE_FLAT && doc.flat_contents.any?
+          commands += doc.flat_contents.reverse.map { |part| [indent, mode, part] }
+        end
+      when Text
+        doc.objects.each { |object| fit_buffer << object }
+        remaining -= doc.width
       end
     end
 
@@ -1255,8 +1232,9 @@ class PrettierPrint
   # Resets the group stack and target array so that this pretty printer object
   # can continue to be used before calling flush again if desired.
   def reset
-    @groups = [Group.new(0)]
-    @target = @groups.last.contents
+    contents = []
+    @groups = [Group.new(0, contents: contents)]
+    @target = contents
   end
 
   def remove_breaks_with(doc, replace)
