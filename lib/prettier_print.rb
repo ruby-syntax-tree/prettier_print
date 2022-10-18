@@ -809,6 +809,7 @@ class PrettierPrint
   # formatting like a multi-line string.
   def breakable_return
     target << BREAKABLE_RETURN
+    break_parent
   end
 
   # A convenience method which is same as follows:

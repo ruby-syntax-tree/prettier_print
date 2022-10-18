@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [1.0.1] - 2022-10-18
+
+### Changed
+
+* `breakable_return` - should also break parent
+
 ## [1.0.0] - 2022-10-17
 
 ### Added
@@ -31,5 +37,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - 🎉 Initial release! 🎉
 
-[unreleased]: https://github.com/ruby-syntax-tree/prettier_print/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/ruby-syntax-tree/prettier_print/compare/...v0.1.0
+[unreleased]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/ruby-syntax-tree/prettier_print/compare/v0.1.0...v1.0.0
+[0.1.0]: https://github.com/ruby-syntax-tree/prettier_print/compare/df51ce...v0.1.0
