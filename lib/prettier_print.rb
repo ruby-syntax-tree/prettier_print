@@ -291,7 +291,7 @@ class PrettierPrint
 
       def trim!
         length = output.length
-        output.rstrip!
+        output.gsub!(/[\t ]*\z/, "")
         length - output.length
       end
     end
@@ -323,7 +323,7 @@ class PrettierPrint
 
         if output.any? && output.last.is_a?(String) && !output.last.frozen?
           length = output.last.length
-          output.last.rstrip!
+          output.last.gsub!(/[\t ]*\z/, "")
           trimmed += length - output.last.length
         end
 
