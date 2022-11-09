@@ -122,10 +122,10 @@ class PrettierPrint
 
   # Below here are the most common combination of options that are created when
   # creating new breakables. They are here to cut down on some allocations.
-  BREAKABLE_SPACE = Breakable.new(" ", 1, indent: true, force: false)
-  BREAKABLE_EMPTY = Breakable.new("", 0, indent: true, force: false)
-  BREAKABLE_FORCE = Breakable.new(" ", 1, indent: true, force: true)
-  BREAKABLE_RETURN = Breakable.new(" ", 1, indent: false, force: true)
+  BREAKABLE_SPACE = Breakable.new(" ", 1, indent: true, force: false).freeze
+  BREAKABLE_EMPTY = Breakable.new("", 0, indent: true, force: false).freeze
+  BREAKABLE_FORCE = Breakable.new(" ", 1, indent: true, force: true).freeze
+  BREAKABLE_RETURN = Breakable.new(" ", 1, indent: false, force: true).freeze
 
   # A node in the print tree that forces the surrounding group to print out in
   # the "break" mode as opposed to the "flat" mode. Useful for when you need to
@@ -138,7 +138,7 @@ class PrettierPrint
 
   # Since there's really no difference in these instances, just using the same
   # one saves on some allocations.
-  BREAK_PARENT = BreakParent.new
+  BREAK_PARENT = BreakParent.new.freeze
 
   # A node in the print tree that represents a group of items which the printer
   # should try to fit onto one line. This is the basic command to tell the
@@ -267,7 +267,7 @@ class PrettierPrint
 
   # Since all of the instances here are the same, we can reuse the same one to
   # cut down on allocations.
-  TRIM = Trim.new
+  TRIM = Trim.new.freeze
 
   # When building up the contents in the output buffer, it's convenient to be
   # able to trim trailing whitespace before newlines. If the output object is a
@@ -348,6 +348,7 @@ class PrettierPrint
   # behavior (for instance to use tabs) by passing a different genspace
   # procedure.
   DEFAULT_GENSPACE = ->(n) { " " * n }
+  Ractor.make_shareable(DEFAULT_GENSPACE) if defined?(Ractor)
 
   # There are two modes in printing, break and flat. When we're in break mode,
   # any lines will use their newline, any if-breaks will use their break
