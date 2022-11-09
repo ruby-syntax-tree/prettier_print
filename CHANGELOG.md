@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [1.1.0] - 2022-11-08
+
+### Added
+
+- `prettier_print` now works with Ractors.
+
 ## [1.0.2] - 2022-10-19
 
 ### Changed
@@ -43,7 +49,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - 🎉 Initial release! 🎉
 
-[unreleased]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.0.2...HEAD
+[unreleased]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/ruby-syntax-tree/prettier_print/compare/v0.1.0...v1.0.0
