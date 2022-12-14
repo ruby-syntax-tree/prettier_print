@@ -360,6 +360,11 @@ class PrettierPrint
   # a forced line, or the maximum width.
   MODE_FLAT = 2
 
+  # The default indentation for printing is zero, assuming that the code starts
+  # at the top level. That can be changed if desired to start from a different
+  # indentation level.
+  DEFAULT_INDENTATION = 0
+
   # This is a convenience method which is same as follows:
   #
   #   begin
@@ -373,11 +378,12 @@ class PrettierPrint
     output = "".dup,
     maxwidth = 80,
     newline = DEFAULT_NEWLINE,
-    genspace = DEFAULT_GENSPACE
+    genspace = DEFAULT_GENSPACE,
+    indentation = DEFAULT_INDENTATION
   )
     q = new(output, maxwidth, newline, &genspace)
     yield q
-    q.flush
+    q.flush(indentation)
     output
   end
 
@@ -481,17 +487,20 @@ class PrettierPrint
 
   # Flushes all of the generated print tree onto the output buffer, then clears
   # the generated tree from memory.
-  def flush
+  def flush(base_indentation = DEFAULT_INDENTATION)
     # First, get the root group, since we placed one at the top to begin with.
     doc = groups.first
 
     # This represents how far along the current line we are. It gets reset
     # back to 0 when we encounter a newline.
-    position = 0
+    position = base_indentation
+
+    # Start the buffer with the base indentation level.
+    buffer << genspace.call(base_indentation) if base_indentation > 0
 
     # This is our command stack. A command consists of a triplet of an
     # indentation level, the mode (break or flat), and a doc node.
-    commands = [[0, MODE_BREAK, doc]]
+    commands = [[base_indentation, MODE_BREAK, doc]]
 
     # This is a small optimization boolean. It keeps track of whether or not
     # when we hit a group node we should check if it fits on the same line.

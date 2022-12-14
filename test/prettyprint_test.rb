@@ -517,4 +517,68 @@ End
 
 end
 
+class DifferentIndentationLevelExample < Test::Unit::TestCase # :nodoc:
+  def format(indentation)
+    PrettierPrint.format(
+      ''.dup,
+      2,
+      PrettierPrint::DEFAULT_NEWLINE,
+      PrettierPrint::DEFAULT_GENSPACE,
+      indentation
+    ) {|q|
+      q.group {
+        q.text("[")
+
+        q.indent {
+          q.breakable_empty
+          q.text("1")
+        }
+
+        q.breakable_empty
+        q.text("]")
+      }
+    }.delete_prefix("\n")
+  end
+
+  def test_default
+    expected = <<'End'.chomp
+[
+  1
+]
+End
+
+    assert_equal(expected, format(0))
+  end
+
+  def test_level_2
+    expected = <<'End'.chomp
+  [
+    1
+  ]
+End
+
+    assert_equal(expected, format(2))
+  end
+
+  def test_level_4
+    expected = <<'End'.chomp
+    [
+      1
+    ]
+End
+
+    assert_equal(expected, format(4))
+  end
+
+  def test_level_6
+    expected = <<'End'.chomp
+      [
+        1
+      ]
+End
+
+    assert_equal(expected, format(6))
+  end
+end
+
 end
