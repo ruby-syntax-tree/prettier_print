@@ -7,7 +7,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     docile (1.4.0)
-    power_assert (2.0.1)
+    power_assert (2.0.2)
     rake (13.0.6)
     simplecov (0.21.2)
       docile (~> 1.1)
@@ -15,7 +15,7 @@ GEM
       simplecov_json_formatter (~> 0.1)
     simplecov-html (0.12.3)
     simplecov_json_formatter (0.1.4)
-    test-unit (3.5.5)
+    test-unit (3.5.7)
       power_assert
 
 PLATFORMS
