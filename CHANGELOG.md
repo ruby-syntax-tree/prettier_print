@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [1.2.0] - 2022-12-23
+
+### Added
+
+- You can now supply the base indentation level for the output buffer.
+
 ## [1.1.0] - 2022-11-08
 
 ### Added
@@ -49,7 +55,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - 🎉 Initial release! 🎉
 
-[unreleased]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.1.0...HEAD
+[unreleased]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/ruby-syntax-tree/prettier_print/compare/v1.0.0...v1.0.1
