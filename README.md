@@ -1,5 +1,8 @@
 # PrettierPrint
 
+[![Build Status](https://github.com/kddnewton/prettier_print/workflows/Main/badge.svg)](https://github.com/kddnewton/prettier_print/actions)
+[![Gem Version](https://img.shields.io/gem/v/prettier_print.svg)](https://rubygems.org/gems/prettier_print)
+
 A drop-in replacement for the `prettyprint` gem with more functionality.
 
 ## Installation
