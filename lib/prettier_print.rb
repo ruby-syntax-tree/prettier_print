@@ -616,8 +616,11 @@ class PrettierPrint
       end
 
       if commands.empty? && line_suffixes.any?
-        commands += line_suffixes.sort_by(&line_suffix_sort)
-        line_suffixes = []
+        line_suffixes.sort_by(&line_suffix_sort).each do |(indent, mode, doc)|
+          commands += doc.contents.reverse.map { |part| [indent, mode, part] }
+        end
+
+        line_suffixes.clear
       end
     end
 

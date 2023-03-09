@@ -152,6 +152,15 @@ class PrettierPrint
       assert_equal "content # suffix\n", result
     end
 
+    test "PrettierPrint#line_suffix without a break" do
+      result =
+        PrettierPrint.format do |q|
+          q.line_suffix { q.text("# suffix") }
+        end
+
+      assert_equal "# suffix", result
+    end
+
     test "PrettierPrint#trim" do
       result =
         PrettierPrint.format do |q|
