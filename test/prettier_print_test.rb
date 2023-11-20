@@ -14,11 +14,13 @@ class PrettierPrint
     end
 
     test "Breakable#pretty_print force=true" do
-      assert_equal "breakable(force=true)\n", PP.pp(Breakable.new(force: true), +"")
+      assert_equal "breakable(force=true)\n",
+                   PP.pp(Breakable.new(force: true), +"")
     end
 
     test "Breakable#pretty_print indent=false" do
-      assert_equal "breakable(indent=false)\n", PP.pp(Breakable.new(indent: false), +"")
+      assert_equal "breakable(indent=false)\n",
+                   PP.pp(Breakable.new(indent: false), +"")
     end
 
     test "BreakParent#pretty_print" do
@@ -121,10 +123,7 @@ class PrettierPrint
     end
 
     test "PrettierPrint#if_flat" do
-      result =
-        PrettierPrint.format do |q|
-          q.if_flat { q.text("flat") }
-        end
+      result = PrettierPrint.format { |q| q.if_flat { q.text("flat") } }
 
       assert_equal "flat", result
     end
@@ -153,10 +152,7 @@ class PrettierPrint
     end
 
     test "PrettierPrint#line_suffix without a break" do
-      result =
-        PrettierPrint.format do |q|
-          q.line_suffix { q.text("# suffix") }
-        end
+      result = PrettierPrint.format { |q| q.line_suffix { q.text("# suffix") } }
 
       assert_equal "# suffix", result
     end
@@ -177,10 +173,7 @@ class PrettierPrint
     end
 
     test "PrettierPrint pushing strings" do
-      result =
-        PrettierPrint.format do |q|
-          q.target << "content"
-        end
+      result = PrettierPrint.format { |q| q.target << "content" }
 
       assert_equal "content", result
     end

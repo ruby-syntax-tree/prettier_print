@@ -31,11 +31,7 @@ class PrettierPrint
                   q.text("def ")
                   q.text("format(")
 
-                  q.group do
-                    q.seplist(%w[foo bar baz]) do |item|
-                      q.text(item)
-                    end
-                  end
+                  q.group { q.seplist(%w[foo bar baz]) { |item| q.text(item) } }
 
                   q.text(")")
                   q.breakable_force
@@ -61,7 +57,7 @@ class PrettierPrint
           end
         end
       RUBY
-    
+
       assert_equal expected, result.take.join
     end
   end

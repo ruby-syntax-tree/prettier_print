@@ -529,19 +529,26 @@ class PrettierPrint
       when Group
         if mode == MODE_FLAT && !should_remeasure
           next_mode = doc.break? ? MODE_BREAK : MODE_FLAT
-          commands += doc.contents.reverse.map { |part| [indent, next_mode, part] }
+          commands +=
+            doc.contents.reverse.map { |part| [indent, next_mode, part] }
         else
           should_remeasure = false
 
           if doc.break?
-            commands += doc.contents.reverse.map { |part| [indent, MODE_BREAK, part] }
+            commands +=
+              doc.contents.reverse.map { |part| [indent, MODE_BREAK, part] }
           else
-            next_commands = doc.contents.reverse.map { |part| [indent, MODE_FLAT, part] }
+            next_commands =
+              doc.contents.reverse.map { |part| [indent, MODE_FLAT, part] }
 
             if fits?(next_commands, commands, maxwidth - position)
               commands += next_commands
             else
-              commands += next_commands.map { |command| command[1] = MODE_BREAK; command }
+              commands +=
+                next_commands.map do |command|
+                  command[1] = MODE_BREAK
+                  command
+                end
             end
           end
         end
@@ -566,9 +573,12 @@ class PrettierPrint
         if line_suffixes.any?
           commands << [indent, mode, doc]
 
-          line_suffixes.sort_by(&line_suffix_sort).each do |(indent, mode, doc)|
-            commands += doc.contents.reverse.map { |part| [indent, mode, part] }
-          end
+          line_suffixes
+            .sort_by(&line_suffix_sort)
+            .each do |(indent, mode, doc)|
+              commands +=
+                doc.contents.reverse.map { |part| [indent, mode, part] }
+            end
 
           line_suffixes.clear
           next
@@ -585,17 +595,21 @@ class PrettierPrint
         end
       when Indent
         next_indent = indent + 2
-        commands += doc.contents.reverse.map { |part| [next_indent, mode, part] }
+        commands +=
+          doc.contents.reverse.map { |part| [next_indent, mode, part] }
       when Align
         next_indent = indent + doc.indent
-        commands += doc.contents.reverse.map { |part| [next_indent, mode, part] }
+        commands +=
+          doc.contents.reverse.map { |part| [next_indent, mode, part] }
       when Trim
         position -= buffer.trim!
       when IfBreak
         if mode == MODE_BREAK && doc.break_contents.any?
-          commands += doc.break_contents.reverse.map { |part| [indent, mode, part] }
+          commands +=
+            doc.break_contents.reverse.map { |part| [indent, mode, part] }
         elsif mode == MODE_FLAT && doc.flat_contents.any?
-          commands += doc.flat_contents.reverse.map { |part| [indent, mode, part] }
+          commands +=
+            doc.flat_contents.reverse.map { |part| [indent, mode, part] }
         end
       when LineSuffix
         line_suffixes << [indent, mode, doc]
@@ -616,9 +630,11 @@ class PrettierPrint
       end
 
       if commands.empty? && line_suffixes.any?
-        line_suffixes.sort_by(&line_suffix_sort).each do |(indent, mode, doc)|
-          commands += doc.contents.reverse.map { |part| [indent, mode, part] }
-        end
+        line_suffixes
+          .sort_by(&line_suffix_sort)
+          .each do |(indent, mode, doc)|
+            commands += doc.contents.reverse.map { |part| [indent, mode, part] }
+          end
 
         line_suffixes.clear
       end
@@ -757,9 +773,9 @@ class PrettierPrint
   #   xxx 2
   #   q.comma_breakable
   #   xxx 3
-  def seplist(list, sep=nil, iter_method=:each) # :yield: element
+  def seplist(list, sep = nil, iter_method = :each) # :yield: element
     first = true
-    list.__send__(iter_method) {|*v|
+    list.__send__(iter_method) do |*v|
       if first
         first = false
       elsif sep
@@ -768,7 +784,7 @@ class PrettierPrint
         comma_breakable
       end
       RUBY_VERSION >= "3.0" ? yield(*v, **{}) : yield(*v)
-    }
+    end
   end
 
   # ----------------------------------------------------------------------------
@@ -918,7 +934,8 @@ class PrettierPrint
     break_contents = []
     flat_contents = []
 
-    doc = IfBreak.new(break_contents: break_contents, flat_contents: flat_contents)
+    doc =
+      IfBreak.new(break_contents: break_contents, flat_contents: flat_contents)
     target << doc
 
     with_target(break_contents) { yield }
@@ -1048,7 +1065,8 @@ class PrettierPrint
         remaining -= doc.length
       when Group
         next_mode = doc.break? ? MODE_BREAK : mode
-        commands += doc.contents.reverse.map { |part| [indent, next_mode, part] }
+        commands +=
+          doc.contents.reverse.map { |part| [indent, next_mode, part] }
       when Breakable
         if mode == MODE_FLAT && !doc.force?
           fit_buffer << doc.separator
@@ -1059,17 +1077,21 @@ class PrettierPrint
         return true
       when Indent
         next_indent = indent + 2
-        commands += doc.contents.reverse.map { |part| [next_indent, mode, part] }
+        commands +=
+          doc.contents.reverse.map { |part| [next_indent, mode, part] }
       when Align
         next_indent = indent + doc.indent
-        commands += doc.contents.reverse.map { |part| [next_indent, mode, part] }
+        commands +=
+          doc.contents.reverse.map { |part| [next_indent, mode, part] }
       when Trim
         remaining += fit_buffer.trim!
       when IfBreak
         if mode == MODE_BREAK && doc.break_contents.any?
-          commands += doc.break_contents.reverse.map { |part| [indent, mode, part] }
+          commands +=
+            doc.break_contents.reverse.map { |part| [indent, mode, part] }
         elsif mode == MODE_FLAT && doc.flat_contents.any?
-          commands += doc.flat_contents.reverse.map { |part| [indent, mode, part] }
+          commands +=
+            doc.flat_contents.reverse.map { |part| [indent, mode, part] }
         end
       when Text
         doc.objects.each { |object| fit_buffer << object }
