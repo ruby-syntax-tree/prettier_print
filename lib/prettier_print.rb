@@ -214,7 +214,7 @@ class PrettierPrint
   # A node in the print tree that has its own special buffer for implementing
   # content that should flush before any newline.
   #
-  # Useful for implementating trailing content, as it's not always practical to
+  # Useful for implementing trailing content, as it's not always practical to
   # constantly check where the line ends to avoid accidentally printing some
   # content after a line suffix node.
   class LineSuffix
