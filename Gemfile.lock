@@ -17,7 +17,7 @@ GEM
     simplecov_json_formatter (0.1.4)
     syntax_tree (6.2.0)
       prettier_print (>= 1.2.0)
-    test-unit (3.6.8)
+    test-unit (3.6.9)
       power_assert
 
 PLATFORMS
